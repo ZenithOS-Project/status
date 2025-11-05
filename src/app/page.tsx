@@ -4,6 +4,9 @@ import { getOverallStatus } from "@/lib/formatUtils";
 import { StatusCard } from "@/components/statusCard";
 import { ServicesList } from "@/components/servicesList";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function StatusPage() {
   const servicesWithHistory = await getServicesWithHistory();
   const overallStatus = getOverallStatus(
