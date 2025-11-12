@@ -47,7 +47,7 @@ async function checkPostgres(connectionString: string): Promise<string> {
 
   try {
     try {
-      const res = await client`SELECT 1`;
+      const res = await client`SELECT id FROM your_table LIMIT 1`;
       console.log("Postgres query result:", res);
     } catch (error) {
       console.error("Error executing query:", error);
