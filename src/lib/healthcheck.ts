@@ -1,9 +1,9 @@
+import { createClient } from "@supabase/supabase-js";
 import { db } from "./db";
-import postgres from "postgres";
 
 export async function checkAllServices() {
   const services = await db`
-    SELECT id, name, url, type FROM services
+    SELECT id, name, url, token, type FROM services
   `;
 
   for (const service of services) {
@@ -12,13 +12,14 @@ export async function checkAllServices() {
 
     try {
       if (service.type === "postgres") {
-        status = await checkPostgres(service.url);
+        status = await checkPostgres(service.url, service.token);
       } else if (service.type === "mysql") {
         status = await checkMysql(service.url);
       } else {
         status = await checkHttp(service.url);
       }
     } catch (error) {
+      console.error(`Health check failed for ${service.name}:`, error);
       status = "down";
     }
 
@@ -38,24 +39,23 @@ async function checkHttp(url: string): Promise<string> {
   return res.ok ? "up" : "degraded";
 }
 
-async function checkPostgres(connectionString: string): Promise<string> {
-  const client = postgres(connectionString, {
-    connect_timeout: 5,
-  });
-
-  console.log("Checking Postgres connection...");
+async function checkPostgres(
+  supabaseUrl: string,
+  token: string,
+): Promise<string> {
+  const client = createClient(supabaseUrl, token);
 
   try {
-    try {
-      const res = await client`SELECT id FROM notifications LIMIT 1`;
-      console.log("Postgres query result:", res);
-    } catch (error) {
-      console.error("Error executing query:", error);
-    }
+    await Promise.race([
+      client.from("users").select("*").limit(1),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Postgres timeout")), 5000),
+      ),
+    ]);
 
-    await client.end();
     return "up";
   } catch (error) {
+    console.error("Postgres health check failed:", error);
     return "down";
   }
 }
@@ -64,10 +64,15 @@ async function checkMysql(connectionString: string): Promise<string> {
   try {
     const mysql = await import("mysql2/promise");
     const connection = await mysql.createConnection(connectionString);
-    await connection.ping();
-    await connection.end();
-    return "up";
+
+    try {
+      await connection.ping();
+      return "up";
+    } finally {
+      await connection.end();
+    }
   } catch (error) {
+    console.error("MySQL health check failed:", error);
     return "down";
   }
 }
