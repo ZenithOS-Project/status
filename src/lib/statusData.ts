@@ -27,6 +27,7 @@ export async function getServiceHistory(
   days: number = 7,
 ): Promise<HistoryPoint[]> {
   const startDate = new Date();
+
   startDate.setDate(startDate.getDate() - days);
 
   const history = await db`
@@ -36,7 +37,7 @@ export async function getServiceHistory(
       SUM(CASE WHEN status = 'degraded' THEN 1 ELSE 0 END) as degraded,
       SUM(CASE WHEN status = 'down' THEN 1 ELSE 0 END) as down
     FROM health_checks
-    WHERE service_id = ${serviceId} AND created_at >= ${startDate.toISOString()}
+    WHERE service_id = ${serviceId} AND created_at > ${startDate.toISOString()}
     GROUP BY DATE(created_at)
     ORDER BY date ASC
   `;
@@ -48,13 +49,12 @@ export async function getServiceHistory(
     down: Number(row.down ?? 0),
   }));
 }
-
 export async function getServicesWithHistory(): Promise<ServiceWithHistory[]> {
   const services = await getServices();
   const results = await Promise.all(
     services.map(async (service) => ({
       service,
-      history: await getServiceHistory(service.id, 7),
+      history: await getServiceHistory(service.id, 89),
     })),
   );
   return results;

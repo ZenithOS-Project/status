@@ -34,6 +34,9 @@ export async function checkAllServices() {
 
 async function checkHttp(url: string): Promise<string> {
   const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${process.env.HEALTH_CHECK_TOKEN}`,
+    },
     signal: AbortSignal.timeout(5000),
   });
   return res.ok ? "up" : "degraded";
